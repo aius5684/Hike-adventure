@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>RomCom Jumpers — Mountain Hearts Edition</title>
+  <style>
+    :root{--pink:#ff6b9f;--blue:#6bd1ff;--leaf:#7fc97f}
+    html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial;background:linear-gradient(180deg,#EAF8FF 0%, #F7FFF5 100%)}
+    body{display:flex;align-items:center;justify-content:center}
+    canvas{border-radius:14px;box-shadow:0 18px 60px rgba(0,0,0,0.18);background:#fff}
+    .ui{position:fixed;left:14px;top:14px;background:rgba(255,255,255,0.98);padding:12px;border-radius:12px;box-shadow:0 8px 22px rgba(0,0,0,0.08);width:320px;transition:max-height 0.3s ease, padding 0.3s ease; overflow:hidden; max-height:1000px;}
+    .ui.collapsed{max-height:40px; padding:12px 12px 0 12px;}
+    .menu{position:fixed;right:14px;top:14px;background:rgba(255,255,255,0.98);padding:12px;border-radius:12px;width:320px;box-shadow:0 8px 22px rgba(0,0,0,0.08);overflow:hidden}
+    .menu.collapsed2{max-height:40px; padding:12px 12px 0 12px;}
+    .row{display:flex;gap:8px;align-items:center;margin:8px 0}
+    input[type=text]{flex:1;padding:6px 8px;border-radius:8px;border:1px solid #eee}
+    input[type=color]{width:44px;height:34px;border:0;padding:0}
+    button{background:var(--pink);border:none;padding:8px 12px;color:white;border-radius:8px;font-weight:700;cursor:pointer}
+    .small{font-size:13px;color:#444}
+    .footer{position:fixed;left:14px;bottom:14px;background:rgba(255,255,255,0.98);padding:8px;border-radius:10px}
+    .center{position:fixed;left:50%;transform:translateX(-50%);top:14px;background:linear-gradient(90deg,#ffffffaa,#fff0);padding:10px 18px;border-radius:12px}
+    .modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(255,255,255,0.98);padding:18px;border-radius:12px;box-shadow:0 12px 36px rgba(0,0,0,0.2);display:none;z-index:999}
+    .heart-list{max-height:260px;overflow:auto;margin-top:8px}
+    label{font-size:13px}
+    #collapseBtn{background:#444; margin-bottom:8px;}
+    #collapseBtn2{background:#444; margin-bottom:8px;}
+  </style>
+</head>
+<body>
+  <canvas id="game" width="1280" height="760"></canvas>
+
+  <div class="ui" id="customUI">
+    <button id="collapseBtn">Collapse</button>
+    <h2>Customize</h2>
+    <div class="row"><label>Princess name</label><input id="p1name" type="text" value="Sofi"/></div>
+    <div class="row"><label>Pink color</label><input id="p1color" type="color" value="#ff6b9f"/></div>
+    <div class="row"><label>Prince name</label><input id="p2name" type="text" value="Jero"/></div>
+    <div class="row"><label>Blue color</label><input id="p2color" type="color" value="#6bd1ff"/></div>
+    <div class="row"><button id="applyCustom">Apply</button><button id="resetBtn" style="background:#777;margin-left:6px">Reset</button></div>
+    <div class="small">Controls — Sofi: A/D, W jump, F holding hands, E hug, R kiss. Jero: ←/→, ↑, L holding hands, O hug, P kiss.</div>
+  </div>
+
+
+  <script>
+    const collapseBtn = document.getElementById('collapseBtn');
+    const customUI = document.getElementById('customUI');
+
+    collapseBtn.addEventListener('click', () => {
+      customUI.classList.toggle('collapsed');
+      collapseBtn.textContent = customUI.classList.contains('collapsed') ? 'Expand' : 'Collapse';
+    });
+  </script>
+  
+
+  <div class="menu" id="menu1">
+    <button id="collapseBtn2">Collapse</button>
+    <h2>Menu & Levels</h2>
+    <div class="small">Select Level:</div>
+    <div id="levelBtns" style="display:flex;flex-direction:column;gap:6px;margin-top:6px"></div>
+    <div style="margin-top:8px"><button id="startBtn">Start Level</button><button id="resumeBtn" style="background:#5ab46a;margin-left:6px">Resume</button></div>
+    <div id="taskBox" class="tasklist" style="margin-top:8px"></div>
+    <div style="margin-top:8px"><button id="toggleMusic">Toggle Music</button> <button id="unlockAudio" style="background:#4466ff;margin-left:6px">Enable Audio</button></div>
+  </div>
+
+  <script>
+    const collapseBtn2 = document.getElementById('collapseBtn2');
+    const menu1 = document.getElementById('menu1');
+
+    collapseBtn2.addEventListener('click', () => {
+      menu1.classList.toggle('collapsed2');
+      collapseBtn2.textContent = menu1.classList.contains('collapsed2') ? 'Expand' : 'Collapse';
+    });
+  </script>
+
+
+  <div class="footer" id="footer">
+    <div class="small" id="relMeter">Relationship: ♥ 0%</div>
+    <div class="small" id="hugStatus">Hugged: No</div>
+  </div>
+
+  <div class="center" id="levelTitle">Mountain Hearts — Nature Edition</div>
+
+  <!-- Modal used for naming hearts -->
+  <div class="modal" id="nameModal">
+    <div style="font-weight:700;margin-bottom:8px">Name your Heart Baby</div>
+    <div style="margin-bottom:8px"><label>Heart name</label><br/><input id="heartNameInput" type="text" placeholder="e.g. Luna" style="width:280px;padding:6px;border-radius:6px;border:1px solid #ddd"/></div>
+    <div style="margin-bottom:12px"><label>Heart color</label><br/><input id="heartColorInput" type="color" value="#ff77aa"/></div>
+    <div style="display:flex;gap:8px"><button id="heartSaveBtn">Save</button><button id="heartCancelBtn" style="background:#777">Cancel</button></div>
+  </div>
+
+  <!-- Level win modal showing hearts -->
+  <div class="modal" id="winModal">
+    <div id="winText" style="font-size:18px;font-weight:700;margin-bottom:8px">Level Complete!</div>
+    <div id="winDetails" style="margin-bottom:8px">You finished the tasks.</div>
+    <div style="font-weight:700">Hearts collected this level:</div>
+    <div class="heart-list" id="heartList"></div>
+    <div style="display:flex;gap:8px;margin-top:12px"><button id="nextLevelBtn">Next Level</button><button id="restartLevelBtn" style="background:#777">Restart</button></div>
+  </div>
+
+  <script>
+  // Mountain Hearts — upgraded final version
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  // --- Audio (romantic pad) ---
+ let audioCtx = null, musicOn = false, padNodes = null, chordTimer = null;
+
+function ensureAudio() { 
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); 
+}
+
+function startMusic() {
+  if (musicOn) return;
+  ensureAudio();
+
+  // --- Oscillators + Gain ---
+  const osc1 = audioCtx.createOscillator(), g1 = audioCtx.createGain();
+  const osc2 = audioCtx.createOscillator(), g2 = audioCtx.createGain();
+  const osc3 = audioCtx.createOscillator(), g3 = audioCtx.createGain();
+
+  osc1.type = 'triangle';
+  osc2.type = 'sine';
+  osc3.type = 'triangle'; // changed from sawtooth
+  g1.gain.value = 0; // start at 0, will ramp for pluck
+  g2.gain.value = 0;
+  g3.gain.value = 0;
+
+  osc1.connect(g1); g1.connect(audioCtx.destination);
+  osc2.connect(g2); g2.connect(audioCtx.destination);
+  osc3.connect(g3); g3.connect(audioCtx.destination);
+
+  // --- Chords: G, Em, Cmaj7, D ---
+  const chords = [
+    [196, 247, 294],       // G major
+    [165, 196, 247],       // E minor
+    [261, 329, 392, 247],  // Cmaj7
+    [294, 370, 440],        // D major
+    [196, 247, 294],       // G major
+    [165, 196, 247],       // E minor
+    [261, 329, 392],  // Cmajor
+    [294, 370, 440],        // D major
+    [196, 247, 294],       // G major
+    [165, 196, 247],       // E minor
+    [261, 329, 392,247],  // Cmaj7
+    [294, 370, 440],        // D major
+    [196, 247, 294],       // G major
+    [165, 196, 247],       // E minor
+    [294, 370, 440],        // D major
+    [196, 247, 294],       // G major
+  ];
+
+  let idx = 0;
+
+  function applyChord() {
+    const freqs = chords[idx];
+    const now = audioCtx.currentTime;
+
+    // ramp frequencies for smooth transition
+    if (freqs[0]) osc1.frequency.exponentialRampToValueAtTime(freqs[0], now + 0.05);
+    if (freqs[1]) osc2.frequency.exponentialRampToValueAtTime(freqs[1], now + 0.05);
+    if (freqs[2]) osc3.frequency.exponentialRampToValueAtTime(freqs[2], now + 0.05);
+
+    // --- pluck envelope (quick attack, slow decay) ---
+    const envelopeTime = 1.2;
+    [g1, g2, g3].forEach((gainNode, i) => {
+      gainNode.gain.cancelScheduledValues(now);
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime([0.06,0.04,0.03][i], now + 0.05); // fast attack
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + envelopeTime);   // decay
+    });
+
+    idx = (idx + 1) % chords.length;
+  }
+
+  // --- LFO for subtle vibrato ---
+  const lfo = audioCtx.createOscillator();
+  const lfoGain = audioCtx.createGain();
+  lfo.frequency.value = 0.3;   // slow vibrato
+  lfoGain.gain.value = 2;       // subtle
+  lfo.connect(lfoGain);
+  lfoGain.connect(osc1.frequency);
+  lfoGain.connect(osc2.frequency);
+  lfoGain.connect(osc3.frequency);
+
+  osc1.start(); osc2.start(); osc3.start();
+  lfo.start();
+
+  applyChord();
+  chordTimer = setInterval(applyChord, 900); // pluck new chord every ~1.8s
+
+  padNodes = { osc1, osc2, osc3, lfo, g1, g2, g3 };
+  musicOn = true;
+}
+
+function stopMusic() {
+  if (!musicOn) return;
+  if (padNodes) {
+    try {
+      padNodes.osc1.stop(); padNodes.osc2.stop(); padNodes.osc3.stop(); padNodes.lfo.stop();
+    } catch(e) {}
+    padNodes = null;
+  }
+  if (chordTimer) clearInterval(chordTimer);
+  chordTimer = null;
+  musicOn = false;
+}
+
+document.getElementById('toggleMusic').addEventListener('click', () => {
+  if (!audioCtx) { alert('Click "Enable Audio" to allow music.'); return; }
+  if (!musicOn) startMusic(); else stopMusic();
+});
+
+document.getElementById('unlockAudio').addEventListener('click', () => {
+  ensureAudio();
+  audioCtx.resume().then(() => {
+    startMusic();
+    alert('Audio enabled.');
+  }).catch(() => { alert('Interact with the page and try again.'); });
+});
+
+
+
+
+
+
+
+  // --- Input ---
+  const keys = {}; window.addEventListener('keydown',e=>{ keys[e.key]=true; if(e.key===' ') e.preventDefault(); }); window.addEventListener('keyup',e=>{ keys[e.key]=false; });
+
+  // --- Players ---
+  function makePlayer(x,y,color,name,controls,style){ return {x,y,w:44,h:60,vx:0,vy:0,speed:3.5,jumpPower:15,onGround:false,color,name,controls,score:0,lastAff:-999,lastHug:-999,canKiss:false,hasHugged:false,emote:'',rope:null,style}; }
+  let p1 = makePlayer(140,H-240,'#ff6b9f','Sofi',{left:'a',right:'d',jump:'w',aff:'f',hug:'e',kiss:'r',emote:'g'},'stick');
+  let p2 = makePlayer(W-160,H-240,'#6bd1ff','Jero',{left:'ArrowLeft',right:'ArrowRight',jump:'ArrowUp',aff:'l',hug:'o',kiss:'p',emote:'k'},'stick');
+  const players=[p1,p2];
+
+  // --- Entities ---
+  let loveNotes=[],gifts=[],lanterns=[],particles=[],babies=[],buttons=[],doors=[]; let relationship=0;
+
+  // --- Levels: nature-themed maps ---
+  const LEVELS = [
+    {
+      name:'San Pedro', bg:'mountain',
+      platforms:[{x:0,y:H-70,w:W,h:70},{x:90,y:H-230,w:220,h:18},{x:420,y:H-500,w:180,h:18},{x:720,y:H-230,w:180,h:18},{x:980,y:H-300,w:180,h:18}],
+      mechanics:{springs:[{x:740,y:H-230}],ropes:[],moving:[]},
+      spawns:{
+        loveNotes:[{x:1070,y:H-350}, {x:450,y:H-355},{x:510,y:H-550},{x:200,y:H-600}],
+        gifts:[{x:190,y:H-280}],
+        lanterns:0},
+      tasks:[{type:'collectLove',target:4,done:false},{type:'holdHands',target:1,done:false}],
+      doors:{pink:{x:60,y:H-70-56,open:false},blue:{x:W-96,y:H-70-56,open:false}}
+    },
+    {
+      name:'Jeseníky', bg:'waterfall',
+      platforms:[{x:0,y:H-70,w:W,h:70},{x:130,y:H-210,w:150,h:18},{x:360,y:H-470,w:90,h:18},{x:620,y:H-210,w:80,h:18},{x:880,y:H-400,w:80,h:18},{x:1080,y:H-515,w:80,h:18},{x:745,y:H-600,w:30,h:18},{x:20,y:H-450,w:30,h:18},{x:595,y:H-510,w:30,h:18}],
+      mechanics:{springs:[],ropes:[],moving:[{x:360,y:H-320,w:160,h:18,dir:1,range:200}]},
+      spawns:{
+        loveNotes:[{x:1070,y:H-350}, {x:450,y:H-355},{x:400,y:H-550},{x:200,y:H-600}],
+        gifts:[{x:510,y:H-550},{x:200,y:H-600}],
+        lanterns:[{x:1090,y:H-550}]},
+      tasks:[{type:'lightLanterns',target:1,done:false},{type:'giveGift',target:2,done:false},{type:'collectLove',target:4,done:false}],
+      doors:{pink:{x:100,y:H-70-56,open:false,buttonId:0},blue:{x:W-100,y:H-70-56,open:false,buttonId:1}}
+    },
+    {
+      name:'Mache', bg:'forest',
+      platforms:[{x:0,y:H-70,w:W,h:70},{x:200,y:H-300,w:200,h:18},{x:520,y:H-380,w:240,h:18},{x:860,y:H-260,w:140,h:18},{x:420,y:H-200,w:120,h:18}],
+      mechanics:{springs:[{x:220,y:H-480}],ropes:[],moving:[{x:0,y:H-70,w:W,h:70,dir:1,range:200},{x:130,y:H-210,w:150,h:18,dir:1,range:200},{x:360,y:H-470,w:90,h:18,dir:1,range:200},{x:620,y:H-210,w:80,h:18,dir:1,range:200},{x:880,y:H-400,w:80,h:18,dir:1,range:200},{x:1080,y:H-515,w:80,h:18,dir:1,range:200},{x:745,y:H-600,w:30,h:18,dir:1,range:200},{x:20,y:H-450,w:30,h:18,dir:1,range:200},{x:595,y:H-510,w:30,h:18,dir:1,range:200}]},
+      spawns:{
+        loveNotes:[{x:1070,y:H-700}, {x:450,y:H-500},{x:650,y:H-670},{x:200,y:H-250},{x:1200,y:H-700},{x:900,y:H-370}],
+        gifts:[{x:510,y:H-550},{x:200,y:H-600}],
+        lanterns:[{x:150,y:H-290},{x:750,y:H-450}]},
+      tasks:[{type:'collectLove',target:6,done:false},{type:'hugTogether',target:2,done:false},{type:'lightLanterns',target:2,done:false}],
+      doors:{pink:{x:100,y:H-70-56,open:false,plateId:0},blue:{x:W-100,y:H-70-56,open:false,plateId:1}}
+    },
+    {
+      name:'Cajamarca', bg:'forest',
+      platforms:[{x:0,y:H-70,w:W,h:70},{x:200,y:H-300,w:120,h:18},{x:520,y:H-380,w:240,h:18},{x:860,y:H-260,w:140,h:18},],
+      mechanics:{springs:[{x:520,y:H-700}],ropes:[],moving:[{x:0,y:H-70,w:W,h:0,dir:1,range:200},{x:130,y:H-210,w:150,h:18,dir:1,range:200},{x:360,y:H-470,w:90,h:18,dir:1,range:200},{x:620,y:H-210,w:80,h:18,dir:1,range:200},{x:1080,y:H-515,w:80,h:18,dir:1,range:200},{x:745,y:H-600,w:30,h:18,dir:1,range:200},{x:20,y:H-450,w:30,h:18,dir:1,range:200},{x:595,y:H-510,w:30,h:18,dir:1,range:200}]},
+      spawns:{
+        loveNotes:[{x:1070,y:H-700}, {x:450,y:H-500},{x:650,y:H-670},{x:200,y:H-600},{x:1200,y:H-700},{x:900,y:H-370}],
+        gifts:[{x:1200,y:H-615},{x:200,y:H-250}],
+        lanterns:[{x:150,y:H-290},{x:950,y:H-550}]
+      },
+      tasks:[{type:'collectLove',target:6,done:false},{type:'giveGift',target:2,done:false},{type:'hugTogether',target:2,done:false},{type:'kissTogether',target:1,done:false},{type:'lightLanterns',target:2,done:false}],
+      doors:{pink:{x:100,y:H-70-56,open:false,plateId:0},blue:{x:W-100,y:H-70-56,open:false,plateId:1}}
+    }
+  ];
+  let currentLevel=0;
+
+  // --- Helpers ---
+  function spawnLove(x,y){ loveNotes.push({x,y,r:12}); }
+  function spawnGift(x,y,type='flower'){ gifts.push({x,y,r:14,type,claimed:false}); }
+  function spawnLantern(x,y,lit=false){ lanterns.push({x,y,lit}); }
+  function spawnHeartParticle(x,y,scale=1){ particles.push({x,y,vx:(Math.random()-0.5)*2,vy:-2+Math.random()*-1,life:80,type:'heart',scale}); }
+  function spawnConfetti(x,y){ for(let i=0;i<12;i++) particles.push({x,y,vx:(-3+Math.random()*6),vy:(-3+Math.random()*3),life:40+Math.random()*30,type:'dot'}); }
+  function spawnBaby(x,y,meta){ // meta: {name,color}
+    const s = {x,y,vy:-1.6 + Math.random()*-1.2, vx:(Math.random()-0.5)*1.8, life:999, wob:Math.random()*6, name:meta.name || '♥', color:meta.color || '#ff77aa'}; babies.push(s); }
+
+  // --- Level load ---
+  function loadLevel(idx){ loveNotes=[];gifts=[];lanterns=[];particles=[];babies=[];buttons=[];doors=[]; const L=LEVELS[idx];
+    if (Array.isArray(L.spawns.loveNotes)) {
+    L.spawns.loveNotes.forEach(pos => {
+        spawnLove(pos.x, pos.y);
+        });
+    } else {
+    // Fallback to the old random positions if loveNotes is just a number
+    for(let i = 0; i < (L.spawns.loveNotes || 0); i++){
+        const x = 140 + i*160 + (Math.random()*40 - 20);
+        const y = H - 220 - Math.random()*140;
+        spawnLove(x, y);
+        }
+    }
+    if (Array.isArray(L.spawns.gifts)) {
+    L.spawns.gifts.forEach(pos => {
+        spawnGift(pos.x, pos.y);
+        });
+    } else {
+    // Fallback to the old random positions if loveNotes is just a number
+    for(let i = 0; i < (L.spawns.gifts || 0); i++){
+        const x = 140 + i*160 + (Math.random()*40 - 20);
+        const y = H - 220 - Math.random()*140;
+        spawnGift(x, y);
+        }
+    }
+    if (Array.isArray(L.spawns.lanterns)) {
+    L.spawns.lanterns.forEach(pos => {
+        spawnLantern(pos.x, pos.y);
+        });
+    } else {
+    // Fallback to the old random positions if loveNotes is just a number
+    for(let i = 0; i < (L.spawns.lanterns || 0); i++){
+        const x = 140 + i*160 + (Math.random()*40 - 20);
+        const y = H - 220 - Math.random()*140;
+        spawnLantern(x, y);
+        }
+    }
+      
+    if(L.mechanics && L.mechanics.moving) L.mechanics.moving.forEach(m=>{ m._posX = m.x; });
+    const d=L.doors; doors=[{color:'pink',x:d.pink.x,y:d.pink.y,open:false,meta:d.pink},{color:'blue',x:d.blue.x,y:d.blue.y,open:false,meta:d.blue}];
+    p1.x=140; p1.y=H-240; p1.vx=p1.vy=0; p1.score=0; p1.canKiss=false; p1.hasHugged=false;
+    p2.x=W-160; p2.y=H-240; p2.vx=p2.vy=0; p2.score=0; p2.canKiss=false; p2.hasHugged=false;
+    relationship=0; document.getElementById('levelTitle').textContent=L.name; renderTaskBox(); refreshLevelButtons(); }
+  loadLevel(currentLevel);
+
+  function getPlatforms(){ return LEVELS[currentLevel].platforms; }
+
+  // --- Physics: springs/ropes/moving ---
+  function checkSprings(p){ const mech = LEVELS[currentLevel].mechanics; if(!mech || !mech.springs) return; mech.springs.forEach(s=>{ const dx=(p.x+p.w/2)-s.x; const dy=(p.y+p.h)-s.y; if(Math.abs(dx)<40 && Math.abs(dy)<18 && p.vy > -1){ p.vy = -p.jumpPower*1.9; spawnConfetti(s.x,s.y-20); spawnHeartParticle(s.x,s.y-10,1.2); } }); }
+  function handleRopes(p,dt){ const mech=LEVELS[currentLevel].mechanics; if(!mech||!mech.ropes) return; if(!p.rope){ for(const r of mech.ropes){ const dx=(p.x+p.w/2)-r.x; const dy=p.y - r.y; if(Math.hypot(dx,dy) < r.range && keys[p.controls.jump]){ p.rope={x:r.x,y:r.y,angle:Math.atan2(p.y - r.y, p.x + p.w/2 - r.x),angVel:0}; break; } } } else { p.rope.angVel += (keys[p.controls.left]?-0.02:0) + (keys[p.controls.right]?0.02:0); p.rope.angle += p.rope.angVel; const len=120; p.x = p.rope.x + Math.cos(p.rope.angle)*len - p.w/2; p.y = p.rope.y + Math.sin(p.rope.angle)*len - p.h/2; if(keys[p.controls.jump]){ p.vx = Math.cos(p.rope.angle)*p.rope.angVel*60; p.vy = Math.sin(p.rope.angle)*p.rope.angVel*60; p.rope=null; } } }
+
+  // --- Update ---
+  const gravity=0.95; let gameTime=0;
+  function update(dt){ gameTime+=dt; const mech=LEVELS[currentLevel].mechanics; if(mech && mech.moving) mech.moving.forEach(m=>{ m._posX += m.dir*0.6; if(Math.abs(m._posX - m.x) > m.range) m.dir *= -1; });
+    players.forEach((p,i)=>{ if(p.rope) handleRopes(p,dt); if(!p.rope){ let move=0; if(keys[p.controls.left]) move -=1; if(keys[p.controls.right]) move +=1; p.vx = p.vx*0.82 + move*p.speed*0.6; if(keys[p.controls.jump] && p.onGround){ p.vy = -p.jumpPower; p.onGround=false; } p.vy += gravity*0.85; p.x += p.vx; p.y += p.vy; }
+      if(p.x<6) p.x=6,p.vx=0; if(p.x+p.w>W-6) p.x=W-6-p.w,p.vx=0; if(p.y>H+300){ p.x = Math.random()*(W-260)+80; p.y = 60; p.vy=0; p.score = Math.max(0,p.score-1); spawnConfetti(p.x,p.y); }
+      p.onGround=false; const plats = getPlatforms().concat((mech&&mech.moving)? mech.moving.map(m=>({x:m._posX,y:m.y,w:m.w,h:m.h})):[]);
+      for(const plat of plats){ if(p.x+p.w>plat.x && p.x<plat.x+plat.w){ if(p.y+p.h>plat.y && p.y+p.h<plat.y+plat.h+18 && p.vy>=0){ p.y = plat.y - p.h; p.vy = 0; p.onGround = true; } } }
+      checkSprings(p);
+      for(let j=loveNotes.length-1;j>=0;j--){ const n=loveNotes[j]; const dx=(p.x+p.w/2)-n.x, dy=(p.y+p.h/2)-n.y; if(Math.hypot(dx,dy) < 36){ p.score++; loveNotes.splice(j,1); spawnHeartParticle(n.x,n.y,1.1); updateTasks('collectLove',1); relationship = Math.min(100,relationship+3); } }
+      for(let j=gifts.length-1;j>=0;j--){ const g=gifts[j]; const dx=(p.x+p.w/2)-g.x, dy=(p.y+p.h/2)-g.y; if(Math.hypot(dx,dy) < 38 && !g.claimed){ g.claimed=true; p.score += 2; spawnConfetti(g.x,g.y); updateTasks('giveGift',1); relationship = Math.min(100,relationship+6); } }
+      for(const ln of lanterns){ const dx=(p.x+p.w/2)-ln.x, dy=(p.y+p.h/2)-ln.y; if(Math.hypot(dx,dy) < 50 && keys[p.controls.aff] && !ln.lit){ ln.lit=true; spawnHeartParticle(ln.x,ln.y,1.4); updateTasks('lightLanterns',1); relationship = Math.min(100,relationship+5); } }
+
+      const other = players[1-i]; const dist = Math.hypot((p.x+p.w/2)-(other.x+other.w/2),(p.y+p.h/2)-(other.y+other.h/2));
+      if(keys[p.controls.aff] && keys[other.controls.aff] && dist < 72){ p.holding = true; other.holding=true; p.vx = (p.vx+other.vx)/2; if(gameTime - p.lastAff > 600){ p.lastAff = gameTime; updateTasks('holdHands',1); relationship = Math.min(100,relationship+1); spawnHeartParticle((p.x+other.x)/2,(p.y+other.y)/2,0.9); } } else p.holding=false;
+      if(keys[p.controls.hug] && keys[other.controls.hug] && dist < 56 && Math.abs(p.vx) < 1.6 && Math.abs(other.vx) < 1.6 && gameTime - p.lastHug > 900){ p.lastHug = gameTime; other.lastHug = gameTime; p.hasHugged=true; other.hasHugged=true; p.canKiss=true; other.canKiss=true; spawnConfetti((p.x+other.x)/2,(p.y+other.y)/2); relationship = Math.min(100,relationship+8); updateTasks('hugTogether',1); }
+      // kiss -> opens naming modal and spawns baby with metadata
+      if(keys[p.controls.kiss] && keys[other.controls.kiss] && dist < 60 && p.canKiss && other.canKiss && gameTime - (p._lastKiss||-999) > 800){ p._lastKiss = gameTime; other._lastKiss = gameTime; relationship = Math.min(100,relationship+12); spawnHeartParticle((p.x+other.x)/2,(p.y+other.y)/2,1.6); spawnConfetti((p.x+other.x)/2,(p.y+other.y)/2); updateTasks('kissTogether',1);
+        // open naming UI, store temporary spawn location
+        pendingBabyPos = {x:(p.x+other.x)/2, y:(p.y+other.y)/2 - 18}; openNameModal(); }
+      if(keys[p.controls.emote] && (!p.emote || gameTime - p.emoteTime > 700)){ p.emote = ['☺','♪','♥','^_^','💫'][Math.floor(Math.random()*5)]; p.emoteTime = gameTime; }
+      if(p.emote && gameTime - p.emoteTime > 1400) p.emote = '';
+    }); // end players
+
+    // babies follow & collect
+    for(let i=babies.length-1;i>=0;i--){ const s=babies[i]; const target = players.reduce((a,b)=> (Math.hypot(s.x-a.x,s.y-a.y) < Math.hypot(s.x-b.x,s.y-b.y) ? a : b)); const dx = target.x + target.w/2 - s.x; const dy = target.y - 10 - s.y; s.vx += dx*0.002; s.vy += dy*0.002 + 0.02; s.vx *= 0.96; s.vy *= 0.98; s.x += s.vx; s.y += s.vy; s.wob += 0.05; for(let j=loveNotes.length-1;j>=0;j--){ const n=loveNotes[j]; if(Math.hypot(s.x-n.x,s.y-n.y) < 26){ loveNotes.splice(j,1); relationship = Math.min(100,relationship+4); spawnHeartParticle(n.x,n.y,1.0); } } for(let j=gifts.length-1;j>=0;j--){ const g=gifts[j]; if(!g.claimed && Math.hypot(s.x-g.x,s.y-g.y) < 26){ g.claimed=true; relationship = Math.min(100,relationship+6); spawnConfetti(g.x,g.y); } } }
+
+    // particles
+    for(let i=particles.length-1;i>=0;i--){ const pr=particles[i]; pr.x += pr.vx; pr.y += pr.vy; pr.vy += 0.06; pr.life--; if(pr.life<=0) particles.splice(i,1); }
+
+    // doors: check
+    checkDoors();
+  }
+
+  // --- Naming modal handling ---
+  let pendingBabyPos = null; // set when a kiss happens
+  const nameModal = document.getElementById('nameModal'); const heartNameInput = document.getElementById('heartNameInput'); const heartColorInput = document.getElementById('heartColorInput');
+  document.getElementById('heartSaveBtn').addEventListener('click', ()=>{
+    const name = heartNameInput.value.trim() || 'Love'; const color = heartColorInput.value || '#ff77aa'; if(pendingBabyPos){ spawnBaby(pendingBabyPos.x, pendingBabyPos.y, {name,color}); pendingBabyPos = null; }
+    heartNameInput.value=''; heartColorInput.value='#ff77aa'; nameModal.style.display='none'; });
+  document.getElementById('heartCancelBtn').addEventListener('click', ()=>{ pendingBabyPos=null; heartNameInput.value=''; heartColorInput.value='#ff77aa'; nameModal.style.display='none'; });
+  function openNameModal(){ nameModal.style.display='block'; heartNameInput.focus(); }
+
+  // --- Tasks ---
+  function updateTasks(type,amount){ const tasks = LEVELS[currentLevel].tasks; for(const t of tasks){ if(t.type===type && !t.done){ t._progress = (t._progress||0) + amount; if(t._progress >= t.target){ t.done = true; t._progress = t.target; } } } renderTaskBox(); checkLevelComplete(); }
+  function renderTaskBox(){ const box=document.getElementById('taskBox'); const tasks=LEVELS[currentLevel].tasks; box.innerHTML=''; tasks.forEach(t=>{ const el=document.createElement('div'); el.textContent=(t.done?'✅ ':'⬜ ')+friendlyTaskText(t); box.appendChild(el); }); }
+  function friendlyTaskText(t){ if(t.type==='collectLove') return `Collect ${t.target} love notes (${Math.floor(t._progress||0)}/${t.target})`; if(t.type==='holdHands') return `Hold hands ${t.target} times (${Math.floor(t._progress||0)}/${t.target})`; if(t.type==='lightLanterns') return `Light ${t.target} lanterns (${Math.floor(t._progress||0)}/${t.target})`; if(t.type==='giveGift') return `Give ${t.target} gifts (${Math.floor(t._progress||0)}/${t.target})`; if(t.type==='hugTogether') return `Hug together ${t.target} times (${Math.floor(t._progress||0)}/${t.target})`; if(t.type==='kissTogether') return `Kiss together ${t.target} times (${Math.floor(t._progress||0)}/${t.target})`; return t.type; }
+
+  function checkLevelComplete(){ const tasks = LEVELS[currentLevel].tasks; if(tasks.every(t=>t.done)){ document.getElementById('winText').textContent='Tasks complete — go to your doors!'; document.getElementById('winDetails').textContent=`Complete the door sequence to finish level (relationship ${Math.round(relationship)}%)`; document.getElementById('winModal').style.display='block'; renderHeartList(); } }
+
+  // --- Doors & finish ---
+  function checkDoors(){ if(!doors || doors.length<2) return; const pinkDoor = doors.find(d=>d.color==='pink'); const blueDoor = doors.find(d=>d.color==='blue'); const p1In = (p1.x + p1.w/2) > pinkDoor.x && (p1.x + p1.w/2) < (pinkDoor.x + 36) && (p1.y + p1.h) > pinkDoor.y; const p2In = (p2.x + p2.w/2) > blueDoor.x && (p2.x + p2.w/2) < (blueDoor.x + 36) && (p2.y + p2.h) > blueDoor.y; pinkDoor.open = p1In; blueDoor.open = p2In; const tasksDone = LEVELS[currentLevel].tasks.every(t=>t.done); if(pinkDoor.open && blueDoor.open && tasksDone){ levelFinishSequence(); } }
+
+  function levelFinishSequence(){ spawnConfetti(W/2,H/2); spawnHeartParticle(W/2,H/2,2); document.getElementById('winText').textContent='Level Complete!'; document.getElementById('winDetails').textContent=`Relationship ${Math.round(relationship)}% — Babies: ${babies.length}`; renderHeartList(); document.getElementById('winModal').style.display='block'; }
+
+  function renderHeartList(){ const box = document.getElementById('heartList'); box.innerHTML=''; if(babies.length===0){ box.textContent = 'No heart babies yet — kiss to create one!'; return; } babies.forEach(s=>{ const row = document.createElement('div'); row.style.display='flex'; row.style.alignItems='center'; row.style.gap='8px'; const sw = document.createElement('div'); sw.style.width='18px'; sw.style.height='18px'; sw.style.borderRadius='6px'; sw.style.background = s.color || '#ff77aa'; row.appendChild(sw); const txt = document.createElement('div'); txt.textContent = `${s.name || 'Heart'} (${s.color || '—'})`; box.appendChild(row); box.appendChild(txt); }); }
+
+  // --- Draw ---
+  function drawRoundedRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); ctx.fill(); }
+
+  function drawBackground(){ // parallax mountain layers, waterfall, forest
+    // sky gradient
+    const sky = ctx.createLinearGradient(0,0,0,H); sky.addColorStop(0,'#DFF7FF'); sky.addColorStop(1,'#F7FFF5'); ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
+    // distant mountains
+    for(let i=0;i<3;i++){ const base = 120 + i*60; ctx.fillStyle = `rgba(110,140,160,${0.08 + i*0.06})`; ctx.beginPath(); const peakX = 200 + i*260; ctx.moveTo(-100,H-base); ctx.lineTo(peakX, H-380 - i*40); ctx.lineTo(peakX+380, H-base); ctx.closePath(); ctx.fill(); }
+    // waterfall area (for level 2)
+    if(LEVELS[currentLevel].bg==='waterfall' || LEVELS[currentLevel].bg==='mountain'){ ctx.fillStyle='rgba(200,235,255,0.18)'; ctx.fillRect(420,80,160,H-180); // soft waterfall band
+      // mist
+      for(let m=0;m<6;m++){ ctx.fillStyle='rgba(255,255,255,0.04)'; ctx.beginPath(); ctx.ellipse(420 + m*28, 120 + (m%2)*20, 80, 30, 0,0,Math.PI*2); ctx.fill(); } }
+    // trees foreground
+    for(let t=0;t<8;t++){ const tx = 40 + t*140; const th = 120 + (t%3)*30; ctx.fillStyle='rgba(60,120,60,0.9)'; ctx.beginPath(); ctx.moveTo(tx, H-90); ctx.lineTo(tx+40, H-90); ctx.lineTo(tx+20, H-220 - (t%3)*20); ctx.closePath(); ctx.fill(); }
+    // cottages near end doors
+    const cottage = LEVELS[currentLevel] && LEVELS[currentLevel].name==='Cottage Crest'; if(cottage){ ctx.fillStyle='#F6EDE8'; drawRoundedRect(100, H-180, 120,80,8); ctx.fillStyle='#C96'; drawRoundedRect(W-240, H-190, 120,90,8); }
+  }
+
+  function draw(){ drawBackground(); // platforms
+    ctx.fillStyle='#423f3f'; const plats = getPlatforms(); plats.forEach(plat=>{ drawRoundedRect(plat.x,plat.y,plat.w,plat.h,10); ctx.fillStyle='rgba(255,255,255,0.04)'; ctx.fillRect(plat.x+6,plat.y-6,Math.min(plat.w-12,72),4); ctx.fillStyle='#423f3f'; });
+    // moving
+    const mech=LEVELS[currentLevel].mechanics; if(mech && mech.moving) mech.moving.forEach(m=>{ drawRoundedRect(m._posX,m.y,m.w,m.h,8); ctx.fillStyle='rgba(120,90,60,0.12)'; ctx.fillRect(m._posX + 4, m.y + 2, m.w - 8, m.h - 4); });
+    // springs & ropes visual
+    if(mech && mech.springs) mech.springs.forEach(s=>{ ctx.fillStyle='#b9ffd6'; ctx.beginPath(); ctx.ellipse(s.x,s.y,26,8,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#3fbf78'; ctx.font='12px system-ui'; ctx.fillText('mushroom', s.x-24, s.y+4); });
+    if(mech && mech.ropes) mech.ropes.forEach(r=>{ ctx.strokeStyle='rgba(80,50,20,0.7)'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(r.x,r.y); ctx.lineTo(r.x,r.y+140); ctx.stroke(); ctx.fillStyle='rgba(255,255,255,0.9)'; ctx.fillRect(r.x-14,r.y-8,28,16); ctx.fillStyle='#333'; ctx.font='12px system-ui'; ctx.fillText('vine', r.x-12, r.y+5); });
+    // lanterns & love notes
+    lanterns.forEach(ln=>{ ctx.beginPath(); ctx.arc(ln.x,ln.y,12,0,Math.PI*2); ctx.fillStyle = ln.lit ? '#ffeecf' : '#fff'; ctx.fill(); if(ln.lit){ ctx.fillStyle='#ff6b9f'; ctx.font='12px system-ui'; ctx.fillText('★', ln.x-6, ln.y+5); } });
+    loveNotes.forEach(n=>{ ctx.save(); ctx.translate(n.x,n.y); const wob = Math.sin(gameTime/220 + n.x)*6; ctx.translate(0,wob); ctx.beginPath(); ctx.moveTo(0,-8); ctx.quadraticCurveTo(12,-18,18,-6); ctx.quadraticCurveTo(18,4,0,18); ctx.quadraticCurveTo(-18,4,-18,-6); ctx.quadraticCurveTo(-12,-18,0,-8); ctx.fillStyle='#fff'; ctx.fill(); ctx.fillStyle='rgba(255,80,140,0.95)'; ctx.font='14px system-ui'; ctx.textAlign='center'; ctx.fillText('♥',0,2); ctx.restore(); });
+    gifts.forEach(g=>{ ctx.save(); ctx.translate(g.x,g.y); ctx.fillStyle = g.claimed ? 'rgba(200,200,200,0.5)' : '#fff'; drawRoundedRect(-16,-16,32,32,6); ctx.fillStyle = g.claimed ? '#999' : '#ffb3d1'; ctx.font='14px system-ui'; ctx.textAlign='center'; ctx.fillText(g.type==='flower'?'🌸':'🍫',0,6); ctx.restore(); });
+    // players (hourglass & stick)
+    players.forEach(p=>{ ctx.fillStyle='rgba(0,0,0,0.14)'; ctx.beginPath(); ctx.ellipse(p.x+p.w/2,p.y+p.h+10,p.w*0.8,12,0,0,Math.PI*2); ctx.fill(); if(p.style==='hourglass'){ ctx.fillStyle=p.color; ctx.beginPath(); ctx.moveTo(p.x+p.w/2,p.y+6); ctx.lineTo(p.x+p.w-6,p.y+6); ctx.quadraticCurveTo(p.x+p.w/2,p.y+p.h/2,p.x+p.w-6,p.y+p.h-6); ctx.lineTo(p.x+p.w/2,p.y+p.h-6); ctx.lineTo(p.x+6,p.y+p.h-6); ctx.quadraticCurveTo(p.x+p.w/2,p.y+p.h/2,p.x+6,p.y+6); ctx.closePath(); ctx.fill(); } else { ctx.fillStyle=p.color; ctx.beginPath(); ctx.ellipse(p.x+p.w/2,p.y+12,12,12,0,0,Math.PI*2); ctx.fill(); ctx.fillRect(p.x+p.w/2-3,p.y+22,6,26); ctx.beginPath(); ctx.moveTo(p.x+p.w/2,p.y+36); ctx.lineTo(p.x+p.w/2-10,p.y+52); ctx.moveTo(p.x+p.w/2,p.y+36); ctx.lineTo(p.x+p.w/2+10,p.y+52); ctx.lineWidth=6; ctx.strokeStyle=p.color; ctx.stroke(); ctx.lineWidth=1; } ctx.fillStyle='rgba(255,255,255,0.95)'; ctx.fillRect(p.x-6,p.y-28,p.w+12,16); ctx.fillStyle='#333'; ctx.font='13px system-ui'; ctx.textAlign='center'; ctx.fillText(p.name + ' ('+p.score+')', p.x+p.w/2, p.y-12); if(p.holding){ ctx.strokeStyle='rgba(255,120,160,0.5)'; ctx.lineWidth=6; ctx.beginPath(); ctx.ellipse(p.x+p.w/2,p.y+p.h/2,p.w,p.h,0,0,Math.PI*2); ctx.stroke(); } if(p.emote){ ctx.font='18px system-ui'; ctx.fillText(p.emote, p.x + p.w/2, p.y-36); } });
+    // babies
+    babies.forEach(s=>{ ctx.save(); ctx.translate(s.x,s.y + Math.sin(s.wob)*4); ctx.beginPath(); ctx.moveTo(0,-6); ctx.bezierCurveTo(6,-14,22,-14,22,-2); ctx.bezierCurveTo(22,6,12,14,0,22); ctx.bezierCurveTo(-12,14,-22,6,-22,-2); ctx.bezierCurveTo(-22,-14,-6,-14,0,-6); ctx.closePath(); ctx.fillStyle = s.color || '#ff77aa'; ctx.fill(); ctx.fillStyle='#fff'; ctx.font='12px system-ui'; ctx.textAlign='center'; ctx.fillText('♥',0,4); ctx.restore(); });
+    // particles
+    particles.forEach(pr=>{ if(pr.type==='heart'){ ctx.save(); ctx.translate(pr.x,pr.y); ctx.scale(pr.scale||1,pr.scale||1); ctx.beginPath(); ctx.moveTo(0,-6); ctx.bezierCurveTo(8,-18,28,-18,28,-2); ctx.bezierCurveTo(28,10,14,20,0,30); ctx.bezierCurveTo(-14,20,-28,10,-28,-2); ctx.bezierCurveTo(-28,-18,-8,-18,0,-6); ctx.closePath(); ctx.fillStyle='rgba(255,90,150,0.98)'; ctx.fill(); ctx.restore(); } else { ctx.fillStyle='#222'; ctx.fillRect(pr.x,pr.y,4,4); } });
+    // doors
+    doors.forEach(d=>{ ctx.fillStyle = d.color==='pink' ? 'rgba(255,110,160,0.95)' : 'rgba(100,190,255,0.95)'; ctx.globalAlpha = d.open ? 0.95 : 0.35; drawRoundedRect(d.x,d.y,36,56,8); ctx.globalAlpha = 1; ctx.fillStyle='#fff'; ctx.font='18px system-ui'; ctx.textAlign='center'; ctx.fillText(d.color==='pink'?'❤':'★', d.x+18, d.y+36); });
+    // HUD
+    ctx.fillStyle='#222'; ctx.font='16px system-ui'; ctx.textAlign='left'; ctx.fillText('Level: '+LEVELS[currentLevel].name, 16, 28); ctx.textAlign='right'; ctx.fillText('Notes: '+loveNotes.length+'  Gifts: '+gifts.filter(g=>!g.claimed).length, W-18, 28);
+    const meterW=300,meterX=18,meterY=H-52; ctx.fillStyle='rgba(255,255,255,0.96)'; drawRoundedRect(meterX-8,meterY-20,meterW+16,40,10); ctx.fillStyle='#eee'; drawRoundedRect(meterX,meterY-12,meterW,28,8); ctx.fillStyle='rgba(255,80,140,0.95)'; drawRoundedRect(meterX,meterY-12,meterW*(relationship/100),28,8); ctx.fillStyle='#222'; ctx.font='13px system-ui'; ctx.textAlign='center'; ctx.fillText('Relationship: '+Math.round(relationship)+'%', meterX + meterW/2, meterY+6);
+  }
+
+  function wrapText(text,x,y,maxWidth,lineHeight){ const words=text.split(' '); let line=''; for(let n=0;n<words.length;n++){ const testLine=line+words[n]+' '; const metrics=ctx.measureText(testLine); if(metrics.width>maxWidth && n>0){ ctx.fillText(line,x,y); line = words[n]+' '; y+=lineHeight; } else line=testLine; } ctx.fillText(line,x,y); }
+
+  // --- Main loop ---
+  let last = performance.now(); function loop(now){ const dt = now - last; last = now; if(gameTime < 1600){ if(['a','d','w','ArrowLeft','ArrowRight','ArrowUp'].some(k=>keys[k])) gameTime = 1600; } update(dt); draw(); requestAnimationFrame(loop); }
+  requestAnimationFrame(loop);
+
+  // --- UI wiring ---
+  document.getElementById('applyCustom').addEventListener('click', ()=>{ const p1n=document.getElementById('p1name').value||'Sofi'; const p2n=document.getElementById('p2name').value||'Jero'; const c1=document.getElementById('p1color').value; const c2=document.getElementById('p2color').value; p1.name=p1n; p2.name=p2n; p1.color=c1; p2.color=c2; renderTaskBox(); });
+  document.getElementById('resetBtn').addEventListener('click', ()=>{ document.getElementById('p1name').value='Sofi'; document.getElementById('p2name').value='Jero'; document.getElementById('p1color').value='#ff6b9f'; document.getElementById('p2color').value='#6bd1ff'; document.getElementById('applyCustom').click(); });
+
+  function refreshLevelButtons(){ const container=document.getElementById('levelBtns'); container.innerHTML=''; LEVELS.forEach((L,idx)=>{ const b=document.createElement('button'); b.textContent=(idx===currentLevel? '▶ ':'')+L.name; b.style.background = idx===currentLevel? '#5ab46a' : '#ff8fb0'; b.addEventListener('click', ()=>{ currentLevel=idx; loadLevel(idx); document.getElementById('winModal').style.display='none'; }); container.appendChild(b); }); }
+  refreshLevelButtons(); renderTaskBox();
+
+  document.getElementById('startBtn').addEventListener('click', ()=>{ loadLevel(currentLevel); try{ if(audioCtx && audioCtx.state==='suspended') audioCtx.resume(); }catch(e){} });
+  document.getElementById('resumeBtn').addEventListener('click', ()=>{ document.getElementById('winModal').style.display='none'; });
+
+  document.getElementById('nextLevelBtn').addEventListener('click', ()=>{ const modal=document.getElementById('winModal'); modal.style.display='none'; if(currentLevel < LEVELS.length-1){ currentLevel++; loadLevel(currentLevel); } else { currentLevel = 0; loadLevel(currentLevel); } });
+  document.getElementById('restartLevelBtn').addEventListener('click', ()=>{ const modal=document.getElementById('winModal'); modal.style.display='none'; loadLevel(currentLevel); });
+
+  // name modal inputs
+  document.getElementById('heartSaveBtn').addEventListener('click', ()=>{ const nm = heartNameInput.value.trim() || 'Love'; const col = heartColorInput.value || '#ff77aa'; if(pendingBabyPos){ spawnBaby(pendingBabyPos.x,pendingBabyPos.y,{name:nm,color:col}); pendingBabyPos=null; } heartNameInput.value=''; heartColorInput.value='#ff77aa'; nameModal.style.display='none'; });
+  document.getElementById('heartCancelBtn').addEventListener('click', ()=>{ pendingBabyPos=null; heartNameInput.value=''; heartColorInput.value='#ff77aa'; nameModal.style.display='none'; });
+
+  // interactions: click -> heart particle, dblclick -> gift spawn
+  canvas.addEventListener('click', e=>{ const r=canvas.getBoundingClientRect(); spawnHeartParticle(e.clientX - r.left, e.clientY - r.top, 1.3); });
+  canvas.addEventListener('dblclick', e=>{ const r=canvas.getBoundingClientRect(); spawnGift(e.clientX - r.left, e.clientY - r.top); });
+
+  // footer status
+  setInterval(()=>{ document.getElementById('relMeter').textContent = 'Relationship: ♥ ' + Math.round(relationship) + '%'; document.getElementById('hugStatus').textContent = 'Hugged: ' + ((p1.hasHugged || p2.hasHugged)? 'Yes' : 'No'); }, 300);
+
+  </script>
+</body>
+</html>
